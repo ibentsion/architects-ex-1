@@ -22,6 +22,8 @@ class CausalSelfAttention(nn.Module):
         # regularization
         self.n_head = config.n_head
         self.n_embd = config.n_embd
+        self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size))
+                                     .view(1, 1, config.block_size, config.block_size))
 
     def forward(self, x):
         B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)
@@ -358,6 +360,8 @@ for step in range(max_steps):
     
     # TODO: Implement the training step
     lr = get_lr(step)
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
     x, y = train_loader.next_batch()
     x, y = x.to(device), y.to(device)
     logits, loss = model(x, y)
