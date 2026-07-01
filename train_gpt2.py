@@ -385,7 +385,7 @@ for step in range(max_steps):
     tokens_processed = train_loader.B * train_loader.T * grad_accum_steps * ddp_world_size
     tokens_per_sec = tokens_processed / dt
     if master_process:
-        if 0 == step % (VAL_PRINT_RATIO//4):
+        if 0 == step % (VAL_PRINT_RATIO//5):
             print(f"step {step:5d} | avg_loss: {loss_accum.item()/(1+step):.6f} | batch_loss: {loss.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}")
         with open(log_file, "a") as f:
             f.write(f"{step} train {loss_accum.item():.6f}\n")
