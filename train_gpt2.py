@@ -351,6 +351,7 @@ with open(log_file, "w") as f: # open for writing to clear the file
     pass
 
 loss_accum = val_loss_accum = None
+VAL_PRINT_RATIO=20
 max_norm = 3e3
 
 for step in range(max_steps):
@@ -384,12 +385,12 @@ for step in range(max_steps):
     tokens_processed = train_loader.B * train_loader.T * grad_accum_steps * ddp_world_size
     tokens_per_sec = tokens_processed / dt
     if master_process:
-        print(f"step {step:5d} | loss: {loss_accum.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}")
+        print(f"step {step:5d} | avg_loss: {loss_accum.item()/(1+step):.6f} | loss_accum: {loss_accum.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}")
         with open(log_file, "a") as f:
             f.write(f"{step} train {loss_accum.item():.6f}\n")
 
     # validation loss
-    if 0 == step % 20:
+    if 0 == step % VAL_PRINT_RATIO:
         with torch.no_grad():
             t0 = time.time()
             x_val, y_val = val_loader.next_batch()
@@ -403,6 +404,6 @@ for step in range(max_steps):
             dt = t1 - t0 # time difference in seconds
             tokens_processed = val_loader.B * val_loader.T * grad_accum_steps * ddp_world_size
             tokens_per_sec = tokens_processed / dt
-            print(f"step {step:5d} | val_loss: {val_loss_accum.item():.6f} | val_dt: {dt*1000:.2f}ms | val_tok/sec: {tokens_per_sec:.2f}")
+            print(f"step {step:5d} | avg_val_loss: {val_loss_accum.item()/(1+step/VAL_PRINT_RATIO):.6f} | val_loss_accum: {val_loss_accum.item():.6f} | val_dt: {dt*1000:.2f}ms | val_tok/sec: {tokens_per_sec:.2f}")
 if ddp:
     destroy_process_group()
