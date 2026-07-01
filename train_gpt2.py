@@ -364,12 +364,13 @@ for step in range(max_steps):
         param_group['lr'] = lr
     x, y = train_loader.next_batch()
     x, y = x.to(device), y.to(device)
+    optimizer.zero_grad()
+    # with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
     logits, loss = model(x, y)
     if loss_accum is None:
         loss_accum = loss
     else:
         loss_accum += loss
-    optimizer.zero_grad()
     loss.backward()
     norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=max_norm)
     optimizer.step()
