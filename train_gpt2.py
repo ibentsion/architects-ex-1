@@ -348,13 +348,27 @@ log_file = os.path.join(log_dir, f"log.txt")
 with open(log_file, "w") as f: # open for writing to clear the file
     pass
 
+loss_accum = val_loss_accum = None
+max_norm = 3e3
+
 for step in range(max_steps):
     t0 = time.time()
     last_step = (step == max_steps - 1)
 
     
     # TODO: Implement the training step
-    
+    lr = get_lr(step)
+    x, y = train_loader.next_batch()
+    x, y = x.to(device), y.to(device)
+    logits, loss = model(x, y)
+    if loss_accum is None:
+        loss_accum = loss
+    else:
+        loss_accum += loss
+    optimizer.zero_grad()
+    loss.backward()
+    norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=max_norm)
+    optimizer.step()
     
     if device_type == "cuda":
         torch.cuda.synchronize() # wait for the GPU to finish work
@@ -369,5 +383,21 @@ for step in range(max_steps):
         with open(log_file, "a") as f:
             f.write(f"{step} train {loss_accum.item():.6f}\n")
 
+    # validation loss
+    if 0 == step % 20:
+        with torch.no_grad():
+            t0 = time.time()
+            x_val, y_val = val_loader.next_batch()
+            x_val, y_val = x_val.to(device), y_val.to(device)
+            logits, loss = model(x_val, y_val)
+            if val_loss_accum is None:
+                val_loss_accum = loss
+            else:
+                val_loss_accum += loss
+            t1 = time.time()
+            dt = t1 - t0 # time difference in seconds
+            tokens_processed = val_loader.B * val_loader.T * grad_accum_steps * ddp_world_size
+            tokens_per_sec = tokens_processed / dt
+            print(f"step {step:5d} | val_loss: {val_loss_accum.item():.6f} | val_dt: {dt*1000:.2f}ms | val_tok/sec: {tokens_per_sec:.2f}")
 if ddp:
     destroy_process_group()
