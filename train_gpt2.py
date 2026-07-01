@@ -325,7 +325,7 @@ model.to(device)
 max_lr = 6e-4
 min_lr = max_lr * 0.1
 warmup_steps = 715
-max_steps = 100 # 19,073 steps is ~1 epoch, if data is 10B tokens and batch size 0.5M tokens
+max_steps = 101 # 19,073 steps is ~1 epoch, if data is 10B tokens and batch size 0.5M tokens
 
 def get_lr(it):
     # 1) linear warmup for warmup_iters steps
@@ -385,7 +385,7 @@ for step in range(max_steps):
     tokens_processed = train_loader.B * train_loader.T * grad_accum_steps * ddp_world_size
     tokens_per_sec = tokens_processed / dt
     if master_process:
-        print(f"step {step:5d} | avg_loss: {loss_accum.item()/(1+step):.6f} | loss_accum: {loss_accum.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}")
+        print(f"step {step:5d} | avg_loss: {loss_accum.item()/(1+step):.6f} | batch_loss: {loss.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}")
         with open(log_file, "a") as f:
             f.write(f"{step} train {loss_accum.item():.6f}\n")
 
@@ -404,6 +404,6 @@ for step in range(max_steps):
             dt = t1 - t0 # time difference in seconds
             tokens_processed = val_loader.B * val_loader.T * grad_accum_steps * ddp_world_size
             tokens_per_sec = tokens_processed / dt
-            print(f"step {step:5d} | avg_val_loss: {val_loss_accum.item()/(1+step/VAL_PRINT_RATIO):.6f} | val_loss_accum: {val_loss_accum.item():.6f} | val_dt: {dt*1000:.2f}ms | val_tok/sec: {tokens_per_sec:.2f}")
+            print(f"step {step:5d} | avg_val_loss: {val_loss_accum.item()/(1+step/VAL_PRINT_RATIO):.6f} | val_batch_loss: {loss.item():.6f} | val_dt: {dt*1000:.2f}ms | val_tok/sec: {tokens_per_sec:.2f}")
 if ddp:
     destroy_process_group()
