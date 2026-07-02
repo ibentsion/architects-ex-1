@@ -372,9 +372,9 @@ for step in range(max_steps):
     with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
         logits, loss = model(x, y)
     if loss_accum is None:
-        loss_accum = loss
+        loss_accum = loss.detach()
     else:
-        loss_accum += loss
+        loss_accum += loss.detach()
     loss.backward()
     norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=max_norm)
     optimizer.step()
@@ -402,9 +402,9 @@ for step in range(max_steps):
             with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
                 logits, loss = model(x_val, y_val)
             if val_loss_accum is None:
-                val_loss_accum = loss
+                val_loss_accum = loss.detach()
             else:
-                val_loss_accum += loss
+                val_loss_accum += loss.detach()
             t1 = time.time()
             dt = t1 - t0 # time difference in seconds
             tokens_processed = val_loader.B * val_loader.T * grad_accum_steps * ddp_world_size
