@@ -395,11 +395,11 @@ for step in range(max_steps):
     dt = t1 - t0 # time difference in seconds
     tokens_processed = train_loader.B * train_loader.T * grad_accum_steps * ddp_world_size
     tokens_per_sec = tokens_processed / dt
+    if ddp:
+        dist.all_reduce(loss_accum, op=dist.ReduceOp.AVG)
+        dist.all_reduce(loss, op=dist.ReduceOp.AVG)
+        dist.all_reduce(norm, op=dist.ReduceOp.AVG)
     if master_process:
-        if ddp:
-            dist.all_reduce(loss_accum, op=dist.ReduceOp.AVG)
-            dist.all_reduce(loss, op=dist.ReduceOp.AVG)
-            dist.all_reduce(norm, op=dist.ReduceOp.AVG)
         if VAL_PRINT_RATIO > step or 0 == step % (VAL_PRINT_RATIO//5):
             print(f"step {step:5d} | avg_loss: {loss_accum.item()/(1+step):.6f} | batch_loss: {loss.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}", flush=True)
         with open(log_file, "a") as f:
@@ -423,6 +423,10 @@ for step in range(max_steps):
             dt = t1 - t0 # time difference in seconds
             tokens_processed = val_loader.B * val_loader.T * grad_accum_steps * ddp_world_size
             tokens_per_sec = tokens_processed / dt
-            print(f"step {step:5d} | avg_val_loss: {val_loss_accum.item()/(1+step/VAL_PRINT_RATIO):.6f} | val_batch_loss: {loss.item():.6f} | val_dt: {dt*1000:.2f}ms | val_tok/sec: {tokens_per_sec:.2f}", flush=True)
+            if ddp:
+                dist.all_reduce(val_loss_accum, op=dist.ReduceOp.AVG)
+                dist.all_reduce(loss, op=dist.ReduceOp.AVG)
+            if master_process:
+                print(f"step {step:5d} | avg_val_loss: {val_loss_accum.item()/(1+step/VAL_PRINT_RATIO):.6f} | val_batch_loss: {loss.item():.6f} | val_dt: {dt*1000:.2f}ms | val_tok/sec: {tokens_per_sec:.2f}", flush=True)
 if ddp:
     destroy_process_group()
