@@ -324,8 +324,10 @@ model = GPT(GPTConfig(vocab_size=50304))
 # model = GPT.from_pretrained("gpt2") # or init from OpenAI GPT-2
 model.to(device)
 model = torch.compile(model)
+raw_model = model
 if ddp:
     model = DDP(model, device_ids=[ddp_local_rank])
+    raw_model = model.module
 
 max_lr = 6e-4
 min_lr = max_lr * 0.1
@@ -346,7 +348,7 @@ def get_lr(it):
     return min_lr + coeff * (max_lr - min_lr)
 
 # optimize!
-optimizer = model.configure_optimizers(weight_decay=0.1, learning_rate=max_lr, device_type=device_type)
+optimizer = raw_model.configure_optimizers(weight_decay=0.1, learning_rate=max_lr, device_type=device_type)
 
 # create the log directory we will write checkpoints to and log to
 log_dir = "log"
