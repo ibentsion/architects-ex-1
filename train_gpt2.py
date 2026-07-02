@@ -364,6 +364,7 @@ for step in range(max_steps):
     # TODO: Implement the training step
     optimizer.zero_grad()
     loss_accum = 0.0
+    loss = 0.0
 
     for micro_step in range(grad_accum_steps):
         x, y = train_loader.next_batch()
