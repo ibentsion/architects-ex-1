@@ -353,7 +353,6 @@ log_file = os.path.join(log_dir, f"log.txt")
 with open(log_file, "w") as f: # open for writing to clear the file
     pass
 
-loss_accum = val_loss_accum = None
 VAL_PRINT_RATIO=50
 max_norm = 1.0
 
@@ -363,20 +362,21 @@ for step in range(max_steps):
 
     
     # TODO: Implement the training step
+    optimizer.zero_grad()
+    loss_accum = 0.0
+
+    for micro_step in range(grad_accum_steps):
+        x, y = train_loader.next_batch()
+        x, y = x.to(device), y.to(device)
+        with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
+            logits, loss = model(x, y)
+        loss /= grad_accum_steps
+        loss_accum += loss.detach()
+        loss.backward()
+    norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=max_norm)
     lr = get_lr(step)
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
-    x, y = train_loader.next_batch()
-    x, y = x.to(device), y.to(device)
-    optimizer.zero_grad()
-    with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
-        logits, loss = model(x, y)
-    if loss_accum is None:
-        loss_accum = loss.detach()
-    else:
-        loss_accum += loss.detach()
-    loss.backward()
-    norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=max_norm)
     optimizer.step()
     
     if device_type == "cuda":
@@ -396,14 +396,14 @@ for step in range(max_steps):
     # validation loss
     if 0 == step % VAL_PRINT_RATIO:
         with torch.no_grad():
+            val_loss_accum = 0.0
             t0 = time.time()
-            x_val, y_val = val_loader.next_batch()
-            x_val, y_val = x_val.to(device), y_val.to(device)
-            with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
-                logits, loss = model(x_val, y_val)
-            if val_loss_accum is None:
-                val_loss_accum = loss.detach()
-            else:
+            for micro_step in range(grad_accum_steps):
+                x_val, y_val = val_loader.next_batch()
+                x_val, y_val = x_val.to(device), y_val.to(device)
+                with torch.autocast(device_type=device_type, dtype=torch.bfloat16):
+                    logits, loss = model(x_val, y_val)
+                loss /= grad_accum_steps
                 val_loss_accum += loss.detach()
             t1 = time.time()
             dt = t1 - t0 # time difference in seconds
