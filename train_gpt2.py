@@ -355,7 +355,7 @@ with open(log_file, "w") as f: # open for writing to clear the file
 
 loss_accum = val_loss_accum = None
 VAL_PRINT_RATIO=50
-max_norm = 3e3
+max_norm = 1.0
 
 for step in range(max_steps):
     t0 = time.time()
