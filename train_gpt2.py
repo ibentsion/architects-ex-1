@@ -307,7 +307,7 @@ enc = tiktoken.get_encoding("gpt2")
 
 B = 32 # micro batch size
 T = 1024 # sequence length
-total_batch_size = 2 * B * T # 524288 # 2**19, ~0.5M, in number of tokens
+total_batch_size = 1 * ddp_world_size * B * T # 524288 # 2**19, ~0.5M, in number of tokens
 assert total_batch_size % (B * T * ddp_world_size) == 0, "make sure total_batch_size is divisible by B * T * ddp_world_size"
 grad_accum_steps = total_batch_size // (B * T * ddp_world_size)
 if master_process:
@@ -401,7 +401,7 @@ for step in range(max_steps):
         dist.all_reduce(norm, op=dist.ReduceOp.AVG)
     if master_process:
         if VAL_PRINT_RATIO > step or 0 == step % (VAL_PRINT_RATIO//5):
-            print(f"step {step:5d} | avg_loss: {loss_accum.item()/(1+step):.6f} | batch_loss: {loss.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}", flush=True)
+            print(f"step {step:5d} | loss: {loss_accum.item():.6f} | ubatch_loss: {loss.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}", flush=True)
         with open(log_file, "a") as f:
             f.write(f"{step} train {loss_accum.item():.6f}\n")
 
@@ -427,6 +427,6 @@ for step in range(max_steps):
                 dist.all_reduce(val_loss_accum, op=dist.ReduceOp.AVG)
                 dist.all_reduce(loss, op=dist.ReduceOp.AVG)
             if master_process:
-                print(f"step {step:5d} | avg_val_loss: {val_loss_accum.item()/(1+step/VAL_PRINT_RATIO):.6f} | val_batch_loss: {loss.item():.6f} | val_dt: {dt*1000:.2f}ms | val_tok/sec: {tokens_per_sec:.2f}", flush=True)
+                print(f"step {step:5d} | val_loss: {val_loss_accum.item():.6f} | val_ubatch_loss: {loss.item():.6f} | val_dt: {dt*1000:.2f}ms | val_tok/sec: {tokens_per_sec:.2f}", flush=True)
 if ddp:
     destroy_process_group()
