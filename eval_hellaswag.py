@@ -239,7 +239,7 @@ def main():
     src = parser.add_mutually_exclusive_group(required=True)
     src.add_argument("--checkpoint", type=str, help="path to a local .pt checkpoint")
     src.add_argument("--hf-repo", type=str, help="HuggingFace repo id, e.g. user/gpt2-run")
-    parser.add_argument("--hf-file", type=str, required=True,
+    parser.add_argument("--hf-file", type=str,
                         help="filename inside the HF repo")
     parser.add_argument("--num-samples", type=int, default=5)
     parser.add_argument("--max-length", type=int, default=32)
