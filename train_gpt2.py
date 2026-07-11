@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from hf_checkpoint import save_and_upload_checkpoint
 
 # -----------------------------------------------------------------------------
 
@@ -332,7 +333,7 @@ if ddp:
 max_lr = 6e-4
 min_lr = max_lr * 0.1
 warmup_steps = 715
-max_steps = 1001 # 19,073 steps is ~1 epoch, if data is 10B tokens and batch size 0.5M tokens
+max_steps = 5001 # 19,073 steps is ~1 epoch, if data is 10B tokens and batch size 0.5M tokens
 
 def get_lr(it):
     # 1) linear warmup for warmup_iters steps
@@ -358,6 +359,7 @@ with open(log_file, "w") as f: # open for writing to clear the file
     pass
 
 VAL_PRINT_RATIO=50
+CKPOINT_RATIO=1000
 max_norm = 1.0
 
 for step in range(max_steps):
@@ -428,5 +430,9 @@ for step in range(max_steps):
                 dist.all_reduce(loss, op=dist.ReduceOp.AVG)
             if master_process:
                 print(f"step {step:5d} | val_loss: {val_loss_accum.item():.6f} | val_ubatch_loss: {loss.item():.6f} | val_dt: {dt*1000:.2f}ms | val_tok/sec: {tokens_per_sec:.2f}", flush=True)
+                if 0 == step % CKPOINT_RATIO:
+                    save_and_upload_checkpoint(
+                        raw_model=raw_model, step=step, val_loss=val_loss_accum,
+                        checkpoint_dir='/mnt/models/ibentsion')
 if ddp:
     destroy_process_group()
